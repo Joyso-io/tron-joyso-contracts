@@ -1,8 +1,8 @@
+require('dotenv').config();
+
 module.exports = {
   networks: {
     development: {
-// For trontools/quickstart docker image
-      //privateKey: 'da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0',
       consume_user_resource_percent: 30,
       fee_limit: 100000000,
       fullNode: "http://127.0.0.1:8090",
@@ -11,7 +11,7 @@ module.exports = {
       network_id: "*"
     },
     shasta: {
-      privateKey: '6280347b23b6b585ec4f6790159a5aca64e10af446169cb3fa08a4de6168ad99',
+      privateKey: process.env.DEPLOY_PK,
       consume_user_resource_percent: 30,
       fee_limit: 100000000,
       fullNode: "https://api.shasta.trongrid.io",
@@ -20,9 +20,7 @@ module.exports = {
       network_id: "*"
     },
     mainnet: {
-// Don't put your private key here, pass it using an env variable, like:
-// PK=da146374a75310b9666e834ee4ad0866d6f4035967bfc76217c5a495fff9f0d0 tronbox migrate --network mainnet
-      privateKey: process.env.PK,
+      privateKey: process.env.DEPLOY_PK,
       consume_user_resource_percent: 30,
       fee_limit: 100000000,
       fullNode: "https://api.trongrid.io",

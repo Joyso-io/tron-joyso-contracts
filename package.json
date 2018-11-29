@@ -2,17 +2,16 @@
   "name": "joyso-contracts",
   "version": "1.0.0",
   "description": "",
-  "main": "truffle.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "truffle": "truffle",
-    "compile": "truffle compile",
-    "test": "truffle test",
+    "truffle": "tronbox",
+    "compile": "tronbox compile",
+    "test": "tronbox test",
     "report": "solidity-coverage",
-    "ropsten": "truffle migrate --network ropsten",
-    "dev": "truffle migrate --network development"
+    "shasta": "tronbox migrate --network shasta",
+    "dev": "tronbox migrate --network development"
   },
   "repository": {
     "type": "git",
@@ -39,7 +38,8 @@
     "dotenv": "^5.0.0",
     "eslint": "^4.19.1",
     "solium": "^1.1.6",
-    "truffle": "^4.0.6",
+    "tronbox": "^2.1.9",
+    "tronweb": "^2.1.10",
     "web3-utils": "^1.0.0-beta.33",
     "zeppelin-solidity": "^1.9.0"
   }
