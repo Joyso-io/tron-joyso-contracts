@@ -8,17 +8,17 @@ module.exports = function(deployer) {
   }
   const config = tronbox.networks[deployer.network];
   const tronWeb = new TronWeb(config.fullNode, config.solidityNode, config.eventServer);
+  tronWeb.trx.getCurrentBlock((err, block) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log('Block number: ', block.block_header.raw_data.number);
+      console.log('Block hash: ', block.blockID);
+    }
+  });
   deployer.deploy(Joyso, process.env.JOYSO_WALLET, process.env.JOY_TOKEN).then(() => {
     return Joyso.deployed();
   }).then(instance => {
-    tronWeb.trx.getCurrentBlock((err, block) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log('Block number: ', block.block_header.raw_data.number);
-        console.log('Block hash: ', block.blockID);
-      }
-    });
     if (process.env.ADMIN) {
       instance.addToAdmin(process.env.ADMIN, true);
     }
