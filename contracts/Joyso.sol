@@ -715,7 +715,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
         uint256 txFee = baseGet.mul(isTaker ? (data & TAKER_FEE_MASK) >> 208 : (data & MAKER_FEE_MASK) >> 192) / 10000;
         uint256 joyPrice = isEthOrder ? (data & JOY_PRICE_MASK) >> 164 : (data & TOKEN_JOY_PRICE_MASK) >> 64;
         if (joyPrice != 0) {
-            txFee = isEthOrder ? txFee / (10 ** 5) / joyPrice : txFee * (10 ** 12) / joyPrice;
+            txFee = isEthOrder ? txFee * (10 ** 7) / joyPrice : txFee * (10 ** 12) / joyPrice;
         }
         return fee.add(txFee);
     }

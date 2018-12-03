@@ -20,7 +20,10 @@ module.exports = function(deployer) {
     return Joyso.deployed();
   }).then(instance => {
     if (process.env.ADMIN) {
-      instance.addToAdmin(process.env.ADMIN, true);
+      const admins = process.env.ADMIN.split(',');
+      admins.forEach(admin => {
+        instance.addToAdmin(admin, true);
+      });
     }
     if (process.env.TOKENS) {
       const tokens = process.env.TOKENS.split(',');
