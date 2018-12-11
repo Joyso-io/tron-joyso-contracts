@@ -6,7 +6,7 @@
     "test": "test"
   },
   "scripts": {
-    "truffle": "tronbox",
+    "tronbox": "tronbox",
     "compile": "tronbox compile",
     "test": "tronbox test",
     "report": "solidity-coverage",
