@@ -9,6 +9,7 @@ module.exports = {
   },
   networks: {
     development: {
+      privateKey: process.env.DEPLOY_PK,
       consume_user_resource_percent: 30,
       fee_limit: 300000000,
       fullNode: "http://127.0.0.1:8090",
