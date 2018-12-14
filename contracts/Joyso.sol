@@ -46,11 +46,11 @@ contract Joyso is Ownable, JoysoDataDecoder {
     mapping (uint256 => address) public userId2Address;
     mapping (address => uint256) public userAddress2Id;
     mapping (address => uint256) public tokenAddress2Id;
+    mapping (address => uint256) public userTotalBalance;
 
     address public testAddr;
     uint256 public testValue;
     address public delegator;
-    address public joysoWallet;
     address public joyToken;
     uint256 public lockPeriod = 30 days;
     uint256 public userCount;
@@ -76,9 +76,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
     // for debug
     event TradeSuccess(address user, uint256 baseAmount, uint256 tokenAmount, bool isBuy, uint256 fee);
 
-    constructor(address _joysoWallet, address _joyToken) public {
-        joysoWallet = _joysoWallet;
-        addUser(_joysoWallet);
+    constructor( address _joyToken) public {
         joyToken = _joyToken;
         tokenAddress2Id[joyToken] = 1;
         tokenAddress2Id[0] = 0; // ether address is Id 0
@@ -93,11 +91,11 @@ contract Joyso is Ownable, JoysoDataDecoder {
      * @param amount The amount of token to deposit
      */
     function depositToken(address token, uint256 amount) external {
-        require(amount > 0);
         require(tokenAddress2Id[token] != 0);
         addUser(msg.sender);
         require(ERC20(token).transferFrom(msg.sender, this, amount));
         balances[token][msg.sender] = balances[token][msg.sender].add(amount);
+        userTotalBalance[token] =  userTotalBalance[token].add(amount);
         emit Deposit(
             token,
             msg.sender,
@@ -114,9 +112,9 @@ contract Joyso is Ownable, JoysoDataDecoder {
      * @notice deposit Ether into the contract
      */
     function depositEther() external payable {
-        require(msg.value > 0);
         addUser(msg.sender);
         balances[0][msg.sender] = balances[0][msg.sender].add(msg.value);
+        userTotalBalance[0] =  userTotalBalance[0].add(msg.value);
         emit Deposit(
             0,
             msg.sender,
@@ -191,17 +189,19 @@ contract Joyso is Ownable, JoysoDataDecoder {
      * @notice collect the fee to owner's address, only owner
      */
     function collectFee(address token) external onlyOwner {
-        uint256 amount = balances[token][joysoWallet];
-        require(amount > 0);
-        balances[token][joysoWallet] = 0;
-        if (token == 0) {
+        uint256 amount;
+        if(token == 0 ){
+            amount = address(this).balance.sub(userTotalBalance[token]);
+            require(amount > 0);
             msg.sender.transfer(amount);
         } else {
+            amount = ERC20(token).balanceOf(this).sub(userTotalBalance[token]);
+            require(amount > 0);
             require(ERC20(token).transfer(msg.sender, amount));
         }
         emit Withdraw(
             token,
-            joysoWallet,
+            msg.sender,
             amount,
             0
         );
@@ -243,12 +243,12 @@ contract Joyso is Ownable, JoysoDataDecoder {
         uint256 paymentMethod = data & PAYMENT_METHOD_MASK;
         address token = tokenId2Address[(data & WITHDRAW_TOKEN_MASK) >> 32];
         address user = userId2Address[data & USER_MASK];
-        bytes32 hash = keccak256(
+        bytes32 hash = keccak256(abi.encodePacked(
             this,
             amount,
             gasFee,
             data & SIGN_MASK | uint256(token)
-        );
+        ));
         require(!usedHash[hash]);
         require(
             verify(
@@ -257,7 +257,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 uint8(data & V_MASK == 0 ? 27 : 28),
                 bytes32(inputs[3]),
                 bytes32(inputs[4])
-            ) || recoverOption
+            )
         );
 
         address gasToken = 0;
@@ -269,11 +269,13 @@ contract Joyso is Ownable, JoysoDataDecoder {
 
         if (gasToken == token) { // pay by ether or token
             balances[token][user] = balances[token][user].sub(amount.add(gasFee));
+            userTotalBalance[token] = userTotalBalance[token].sub(amount.add(gasFee));
         } else {
             balances[token][user] = balances[token][user].sub(amount);
             balances[gasToken][user] = balances[gasToken][user].sub(gasFee);
+            userTotalBalance[token] = userTotalBalance[token].sub(amount);
+            userTotalBalance[gasToken] = userTotalBalance[gasToken].sub(gasFee);
         }
-        balances[gasToken][joysoWallet] = balances[gasToken][joysoWallet].add(gasFee);
 
         usedHash[hash] = true;
 
@@ -458,8 +460,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
         }
         require(balances[gasToken][user] >= gasFee);
         balances[gasToken][user] = balances[gasToken][user].sub(gasFee);
-        balances[gasToken][joysoWallet] = balances[gasToken][joysoWallet].add(gasFee);
-
+        userTotalBalance[gasToken] = userTotalBalance[gasToken].sub(gasFee);
         // update user nonce
         userNonce[user] = nonce;
     }
@@ -477,12 +478,12 @@ contract Joyso is Ownable, JoysoDataDecoder {
             uint256 gasFee = inputs[i];
             data = inputs[i + 1];
             address user = userId2Address[data & USER_MASK];
-            bytes32 hash = keccak256(
+            bytes32 hash = keccak256(abi.encodePacked(
                 this,
                 gasFee,
                 data & SIGN_MASK | uint256(token),
                 newContract
-            );
+            ));
             require(
                 verify(
                     hash,
@@ -490,23 +491,26 @@ contract Joyso is Ownable, JoysoDataDecoder {
                     uint8(data & V_MASK == 0 ? 27 : 28),
                     bytes32(inputs[i + 2]),
                     bytes32(inputs[i + 3])
-                ) || recoverOption
+                )
             );
             if (gasFee > 0) {
                 uint256 paymentMethod = data & PAYMENT_METHOD_MASK;
                 if (paymentMethod == PAY_BY_JOY) {
                     balances[joyToken][user] = balances[joyToken][user].sub(gasFee);
-                    balances[joyToken][joysoWallet] = balances[joyToken][joysoWallet].add(gasFee);
+                    userTotalBalance[joyToken] = userTotalBalance[joyToken].sub(gasFee);
+                    
                 } else if (paymentMethod == PAY_BY_TOKEN) {
                     balances[token][user] = balances[token][user].sub(gasFee);
-                    balances[token][joysoWallet] = balances[token][joysoWallet].add(gasFee);
+                    userTotalBalance[token] = userTotalBalance[token].sub(gasFee);
+                    
                 } else {
                     balances[0][user] = balances[0][user].sub(gasFee);
-                    balances[0][joysoWallet] = balances[0][joysoWallet].add(gasFee);
+                    userTotalBalance[0] = userTotalBalance[0].sub(gasFee);
                 }
             }
             uint256 amount = balances[token][user];
             balances[token][user] = 0;
+            userTotalBalance[token] =  userTotalBalance[token].sub(amount);
             if (token == 0) {
                 Migratable(newContract).migrate.value(amount)(user, amount, token);
             } else {
@@ -514,6 +518,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 Migratable(newContract).migrate(user, amount, token);
             }
         }
+        
     }
 
     /**
@@ -539,6 +544,15 @@ contract Joyso is Ownable, JoysoDataDecoder {
         return balances[token][account];
     }
 
+    function getFeeBalance(address token) external view returns (uint256) {
+        if(token == 0){
+            return  address(this).balance.sub(userTotalBalance[token]);
+        }
+        else{
+            return ERC20(token).balanceOf(this).sub(userTotalBalance[token]);
+        }
+         
+    }  
     /**
      * @dev get tokenId and check the order is a buy order or not, internal
      *      tokenId take 4 bytes
@@ -688,16 +702,18 @@ contract Joyso is Ownable, JoysoDataDecoder {
         if (isBuy) { // buy token, sell ether
             balances[base][user] = balances[base][user].sub(baseGet).sub(baseFee);
             balances[token][user] = balances[token][user].add(tokenGet);
+            userTotalBalance[base] = userTotalBalance[base].sub(baseGet).sub(baseFee);
+            userTotalBalance[token] = userTotalBalance[token].add(tokenGet);
         } else {
             balances[base][user] = balances[base][user].add(baseGet).sub(baseFee);
             balances[token][user] = balances[token][user].sub(tokenGet);
+            userTotalBalance[base] = userTotalBalance[base].add(baseGet).sub(baseFee);
+            userTotalBalance[token] = userTotalBalance[token].sub(tokenGet);
         }
 
         if (joyFee != 0) {
             balances[joyToken][user] = balances[joyToken][user].sub(joyFee);
-            balances[joyToken][joysoWallet] = balances[joyToken][joysoWallet].add(joyFee);
-        } else {
-            balances[base][joysoWallet] = balances[base][joysoWallet].add(baseFee);
+            userTotalBalance[joyToken] = userTotalBalance[joyToken].sub(joyFee);
         }
     }
 
