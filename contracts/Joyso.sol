@@ -47,23 +47,14 @@ contract Joyso is Ownable, JoysoDataDecoder {
     mapping (address => uint256) public userAddress2Id;
     mapping (address => uint256) public tokenAddress2Id;
 
-    address public testAddr;
-    uint256 public testValue;
-    address public delegator;
     address public joysoWallet;
     address public joyToken;
     uint256 public lockPeriod = 30 days;
     uint256 public userCount;
     bool public tradeEventEnabled = true;
-    bool public recoverOption = false;
 
     modifier onlyAdmin {
         require(msg.sender == owner || isAdmin[msg.sender]);
-        _;
-    }
-
-    modifier onlyDelegator {
-        require(msg.sender == delegator);
         _;
     }
 
@@ -104,10 +95,6 @@ contract Joyso is Ownable, JoysoDataDecoder {
             amount,
             balances[token][msg.sender]
         );
-    }
-
-    function recoverTest(bool option) external onlyAdmin{
-        recoverOption = option;
     }
 
     /**
@@ -257,7 +244,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 uint8(data & V_MASK == 0 ? 27 : 28),
                 bytes32(inputs[3]),
                 bytes32(inputs[4])
-            ) || recoverOption
+            )
         );
 
         address gasToken = 0;
@@ -311,7 +298,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 uint8(data & V_MASK == 0 ? 27 : 28),
                 bytes32(inputs[4]),
                 bytes32(inputs[5])
-            ) || recoverOption
+            )
         );
 
         uint256 tokenExecute = isBuy ? inputs[1] : inputs[0]; // taker order token execute
@@ -342,7 +329,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                     uint8(data & V_MASK == 0 ? 27 : 28),
                     bytes32(inputs[i + 4]),
                     bytes32(inputs[i + 5])
-                ) || recoverOption
+                )
             );
             (tokenExecute, etherExecute) = internalTrade(
                 inputs[i],
@@ -385,7 +372,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 uint8(retrieveV(inputs[3])),
                 bytes32(inputs[4]),
                 bytes32(inputs[5])
-            )|| recoverOption
+            )
         );
         uint256 tokenExecute = isBuy ? inputs[1] : inputs[0]; // taker order token execute
         tokenExecute = tokenExecute.sub(orderFills[orderHash]);
@@ -408,7 +395,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                     uint8(retrieveV(inputs[i + 3])),
                     bytes32(inputs[i + 4]),
                     bytes32(inputs[i + 5])
-                ) || recoverOption
+                )
             );
             (tokenExecute, baseExecute) = internalTrade(
                 inputs[i],
@@ -448,7 +435,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                 uint8(retrieveV(data)),
                 bytes32(inputs[2]),
                 bytes32(inputs[3])
-            ) || recoverOption
+            )
         );
 
         // update balance
@@ -490,7 +477,7 @@ contract Joyso is Ownable, JoysoDataDecoder {
                     uint8(data & V_MASK == 0 ? 27 : 28),
                     bytes32(inputs[i + 2]),
                     bytes32(inputs[i + 3])
-                ) || recoverOption
+                )
             );
             if (gasFee > 0) {
                 uint256 paymentMethod = data & PAYMENT_METHOD_MASK;
